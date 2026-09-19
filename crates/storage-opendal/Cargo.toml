@@ -8,6 +8,6 @@ license.workspace = true
 bytes.workspace = true
 async-trait.workspace = true
 domain = { path = "../domain" }
-opendal = { version = "0.58.2", default-features = false, features = ["services-s3", "services-oss", "services-cos", "services-webdav", "services-sftp", "executors-tokio", "http-transport-reqwest-rustls"] }
+opendal = { version = "0.58.2", default-features = false, features = ["services-s3", "services-oss", "services-cos", "services-webdav", "executors-tokio", "http-transport-reqwest-rustls"] }
 serde.workspace = true
 storage-core = { path = "../storage-core" }
