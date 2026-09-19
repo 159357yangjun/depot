@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use domain::StorageCapabilities;
-use opendal::{Metakey, Operator, services};
+use opendal::{Operator, services};
 use serde::{Deserialize, Serialize};
 use storage_core::{
     ConnectionReport, StorageEntry, StorageError, StorageProvider, UploadRequest, UploadResult,
@@ -106,7 +106,7 @@ impl OpenDalStorage {
         if !root.is_empty() {
             builder = builder.root(&format!("/{root}"));
         }
-        let operator = Operator::new(builder).map_err(map_error)?.finish();
+        let operator = Operator::new(builder).map_err(map_error)?;
         Ok(Self::new(
             operator,
             provider_key,
@@ -129,7 +129,7 @@ impl OpenDalStorage {
         if !root.is_empty() {
             builder = builder.root(&format!("/{root}"));
         }
-        let operator = Operator::new(builder).map_err(map_error)?.finish();
+        let operator = Operator::new(builder).map_err(map_error)?;
         Ok(Self::new(
             operator,
             "oss",
@@ -152,7 +152,7 @@ impl OpenDalStorage {
         if !root.is_empty() {
             builder = builder.root(&format!("/{root}"));
         }
-        let operator = Operator::new(builder).map_err(map_error)?.finish();
+        let operator = Operator::new(builder).map_err(map_error)?;
         Ok(Self::new(
             operator,
             "cos",
@@ -174,7 +174,7 @@ impl OpenDalStorage {
         if !root.is_empty() {
             builder = builder.root(&format!("/{root}"));
         }
-        let operator = Operator::new(builder).map_err(map_error)?.finish();
+        let operator = Operator::new(builder).map_err(map_error)?;
         Ok(Self::new(
             operator,
             "webdav",
@@ -284,7 +284,6 @@ impl StorageProvider for OpenDalStorage {
         let entries = self
             .operator
             .list_with(&directory)
-            .metakey(Metakey::ContentLength)
             .await
             .map_err(map_error)?;
         let mut out = entries
