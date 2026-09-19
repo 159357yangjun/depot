@@ -1,9 +1,9 @@
 use async_trait::async_trait;
-use base64::{engine::general_purpose::STANDARD, Engine as _};
+use base64::{Engine as _, engine::general_purpose::STANDARD};
 use domain::StorageCapabilities;
 use reqwest::{Client, Response, StatusCode, Url};
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use storage_core::{
     ConnectionReport, StorageEntry, StorageError, StorageProvider, UploadRequest, UploadResult,
 };
@@ -55,12 +55,8 @@ impl GiteeStorage {
     }
 
     fn contents_url(&self, path: &str) -> Result<Url, StorageError> {
-        let mut url = self.api_url(&[
-            "repos",
-            &self.config.owner,
-            &self.config.repo,
-            "contents",
-        ])?;
+        let mut url =
+            self.api_url(&["repos", &self.config.owner, &self.config.repo, "contents"])?;
         {
             let mut segments = url
                 .path_segments_mut()
@@ -362,8 +358,13 @@ impl StorageProvider for GiteeStorage {
         let content = payload
             .get("content")
             .and_then(Value::as_str)
-            .ok_or_else(|| StorageError::Provider("Gitee content response did not include file bytes".into()))?;
-        let compact = content.chars().filter(|ch| !ch.is_whitespace()).collect::<String>();
+            .ok_or_else(|| {
+                StorageError::Provider("Gitee content response did not include file bytes".into())
+            })?;
+        let compact = content
+            .chars()
+            .filter(|ch| !ch.is_whitespace())
+            .collect::<String>();
         let decoded = STANDARD
             .decode(compact.as_bytes())
             .map_err(|e| StorageError::Provider(format!("Gitee content decode failed: {e}")))?;
@@ -444,14 +445,19 @@ mod tests {
                 root: "assets/blog".into(),
                 public_base_url: None,
             },
-            GiteeCredentials { token: "test".into() },
+            GiteeCredentials {
+                token: "test".into(),
+            },
         )
     }
 
     #[test]
     fn repository_paths_stay_relative_to_storage_root() {
         let storage = storage();
-        assert_eq!(storage.repository_path("2026/a.png"), "assets/blog/2026/a.png");
+        assert_eq!(
+            storage.repository_path("2026/a.png"),
+            "assets/blog/2026/a.png"
+        );
         assert_eq!(storage.logical_path("assets/blog/2026/a.png"), "2026/a.png");
         assert_eq!(storage.repository_path(""), "assets/blog");
     }
@@ -460,6 +466,9 @@ mod tests {
     fn raw_url_uses_owner_repo_branch_and_path() {
         let storage = storage();
         let url = storage.raw_public_url("assets/blog/a.png").unwrap();
-        assert_eq!(url, "https://gitee.com/alice/images/raw/main/assets/blog/a.png");
+        assert_eq!(
+            url,
+            "https://gitee.com/alice/images/raw/main/assets/blog/a.png"
+        );
     }
 }

@@ -3,9 +3,12 @@ mod commands;
 use std::sync::Arc;
 
 use credential_store::CredentialStore;
-use persistence_sqlite::{AssetRepository, SettingsRepository, StorageGroupRepository, StorageRepository, TaskRepository, WorkflowRepository};
-use tauri::Manager;
+use persistence_sqlite::{
+    AssetRepository, SettingsRepository, StorageGroupRepository, StorageRepository, TaskRepository,
+    WorkflowRepository,
+};
 use task_engine::TaskEngine;
+use tauri::Manager;
 
 #[derive(Clone)]
 pub struct AppState {

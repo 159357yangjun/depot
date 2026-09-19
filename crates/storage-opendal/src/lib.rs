@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use domain::StorageCapabilities;
-use opendal::{services, Metakey, Operator};
+use opendal::{Metakey, Operator, services};
 use serde::{Deserialize, Serialize};
 use storage_core::{
     ConnectionReport, StorageEntry, StorageError, StorageProvider, UploadRequest, UploadResult,

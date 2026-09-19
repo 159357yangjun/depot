@@ -1,12 +1,12 @@
 use async_trait::async_trait;
-use base64::{engine::general_purpose::STANDARD, Engine as _};
+use base64::{Engine as _, engine::general_purpose::STANDARD};
 use domain::StorageCapabilities;
 use reqwest::{
-    header::{ACCEPT, USER_AGENT},
     Client, Response, StatusCode, Url,
+    header::{ACCEPT, USER_AGENT},
 };
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use storage_core::{
     ConnectionReport, StorageEntry, StorageError, StorageProvider, UploadRequest, UploadResult,
 };
@@ -57,12 +57,8 @@ impl GitHubStorage {
     }
 
     fn contents_url(&self, path: &str) -> Result<Url, StorageError> {
-        let mut url = self.api_url(&[
-            "repos",
-            &self.config.owner,
-            &self.config.repo,
-            "contents",
-        ])?;
+        let mut url =
+            self.api_url(&["repos", &self.config.owner, &self.config.repo, "contents"])?;
         {
             let mut segments = url
                 .path_segments_mut()
@@ -229,7 +225,9 @@ impl StorageProvider for GitHubStorage {
             .await
             .map_err(|e| StorageError::Network(e.to_string()))?;
         if !repo_response.status().is_success() {
-            return Err(Self::response_error(repo_response, "GitHub repository check failed").await);
+            return Err(
+                Self::response_error(repo_response, "GitHub repository check failed").await,
+            );
         }
         let repo: Value = repo_response
             .json()
@@ -330,16 +328,21 @@ impl StorageProvider for GitHubStorage {
             .await
             .map_err(|e| StorageError::Provider(e.to_string()))?;
         if let Some(content) = payload.get("content").and_then(Value::as_str) {
-            let compact = content.chars().filter(|ch| !ch.is_whitespace()).collect::<String>();
-            let decoded = STANDARD
-                .decode(compact.as_bytes())
-                .map_err(|e| StorageError::Provider(format!("GitHub content decode failed: {e}")))?;
+            let compact = content
+                .chars()
+                .filter(|ch| !ch.is_whitespace())
+                .collect::<String>();
+            let decoded = STANDARD.decode(compact.as_bytes()).map_err(|e| {
+                StorageError::Provider(format!("GitHub content decode failed: {e}"))
+            })?;
             return Ok(bytes::Bytes::from(decoded));
         }
         let download_url = payload
             .get("download_url")
             .and_then(Value::as_str)
-            .ok_or_else(|| StorageError::Provider("GitHub content response did not include file bytes".into()))?;
+            .ok_or_else(|| {
+                StorageError::Provider("GitHub content response did not include file bytes".into())
+            })?;
         let response = self
             .client
             .get(download_url)
@@ -425,14 +428,19 @@ mod tests {
                 root: "assets/blog".into(),
                 public_base_url: Some("https://img.example.com".into()),
             },
-            GitHubCredentials { token: "test".into() },
+            GitHubCredentials {
+                token: "test".into(),
+            },
         )
     }
 
     #[test]
     fn repository_paths_stay_relative_to_storage_root() {
         let storage = storage();
-        assert_eq!(storage.repository_path("2026/a.png"), "assets/blog/2026/a.png");
+        assert_eq!(
+            storage.repository_path("2026/a.png"),
+            "assets/blog/2026/a.png"
+        );
         assert_eq!(storage.logical_path("assets/blog/2026/a.png"), "2026/a.png");
         assert_eq!(storage.repository_path(""), "assets/blog");
     }

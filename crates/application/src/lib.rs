@@ -1,5 +1,5 @@
-use std::{collections::HashMap, sync::Arc};
 use domain::StorageId;
+use std::{collections::HashMap, sync::Arc};
 use storage_core::StorageProvider;
 use thiserror::Error;
 
@@ -20,6 +20,9 @@ impl ProviderRegistry {
     }
 
     pub fn get(&self, id: &StorageId) -> Result<Arc<dyn StorageProvider>, ApplicationError> {
-        self.providers.get(id).cloned().ok_or(ApplicationError::StorageNotFound(id.clone()))
+        self.providers
+            .get(id)
+            .cloned()
+            .ok_or(ApplicationError::StorageNotFound(id.clone()))
     }
 }

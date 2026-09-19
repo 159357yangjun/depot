@@ -8,8 +8,8 @@ use domain::{
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sqlx::{
-    sqlite::{SqliteConnectOptions, SqlitePoolOptions, SqliteRow},
     Row, SqlitePool,
+    sqlite::{SqliteConnectOptions, SqlitePoolOptions, SqliteRow},
 };
 use uuid::Uuid;
 
@@ -93,18 +93,21 @@ impl StorageRepository {
 
     pub async fn usage_counts(&self, id: Uuid) -> Result<(i64, i64, i64), sqlx::Error> {
         let id_text = id.to_string();
-        let deployments: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM deployments WHERE storage_id=?")
-            .bind(&id_text)
-            .fetch_one(&self.pool)
-            .await?;
-        let groups: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM storage_group_members WHERE storage_id=?")
-            .bind(&id_text)
-            .fetch_one(&self.pool)
-            .await?;
-        let workflows: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM workflows WHERE steps_json LIKE ?")
-            .bind(format!("%{id_text}%"))
-            .fetch_one(&self.pool)
-            .await?;
+        let deployments: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM deployments WHERE storage_id=?")
+                .bind(&id_text)
+                .fetch_one(&self.pool)
+                .await?;
+        let groups: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM storage_group_members WHERE storage_id=?")
+                .bind(&id_text)
+                .fetch_one(&self.pool)
+                .await?;
+        let workflows: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM workflows WHERE steps_json LIKE ?")
+                .bind(format!("%{id_text}%"))
+                .fetch_one(&self.pool)
+                .await?;
         Ok((deployments, groups, workflows))
     }
 
@@ -245,8 +248,6 @@ impl TaskRepository {
     }
 }
 
-
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkflowRecord {
     pub workflow: Workflow,
@@ -341,8 +342,8 @@ fn parse_workflow_row(row: SqliteRow) -> Result<WorkflowRecord, sqlx::Error> {
     let steps_raw: String = row.try_get("steps_json")?;
     let created_at: String = row.try_get("created_at")?;
     let updated_at: String = row.try_get("updated_at")?;
-    let steps = serde_json::from_str(&steps_raw)
-        .map_err(|error| sqlx::Error::Decode(Box::new(error)))?;
+    let steps =
+        serde_json::from_str(&steps_raw).map_err(|error| sqlx::Error::Decode(Box::new(error)))?;
     Ok(WorkflowRecord {
         workflow: Workflow {
             id: parse_uuid(&id)?,
@@ -457,10 +458,12 @@ impl StorageGroupRepository {
     }
 
     pub async fn get(&self, id: Uuid) -> Result<Option<StorageGroupRecord>, sqlx::Error> {
-        let row = sqlx::query("SELECT id,name,strategy,created_at,updated_at FROM storage_groups WHERE id=?")
-            .bind(id.to_string())
-            .fetch_optional(&self.pool)
-            .await?;
+        let row = sqlx::query(
+            "SELECT id,name,strategy,created_at,updated_at FROM storage_groups WHERE id=?",
+        )
+        .bind(id.to_string())
+        .fetch_optional(&self.pool)
+        .await?;
         let Some(row) = row else { return Ok(None) };
         Ok(Some(self.group_from_row(row).await?))
     }
@@ -683,8 +686,12 @@ impl AssetRepository {
                 variant_id,
                 mime_type: row.try_get("mime_type")?,
                 size_bytes: row.try_get::<i64, _>("size_bytes")? as u64,
-                width: row.try_get::<Option<i64>, _>("width")?.map(|value| value as u32),
-                height: row.try_get::<Option<i64>, _>("height")?.map(|value| value as u32),
+                width: row
+                    .try_get::<Option<i64>, _>("width")?
+                    .map(|value| value as u32),
+                height: row
+                    .try_get::<Option<i64>, _>("height")?
+                    .map(|value| value as u32),
                 content_hash: row.try_get("content_hash")?,
                 created_at: parse_dt(&created)?,
                 deployments,

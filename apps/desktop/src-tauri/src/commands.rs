@@ -5,17 +5,17 @@ use std::{
 
 use bytes::Bytes;
 use chrono::Utc;
-use futures::future::join_all;
 use domain::{
     Asset, AssetKind, AssetVariant, Deployment, DeploymentRole, DeploymentStatus, PublishTarget,
     Workflow, WorkflowStep,
 };
+use futures::future::join_all;
 use persistence_sqlite::{
     DeploymentWriteRecord, NewStorageGroupMember, PublishedAssetRecord, StorageGroupMemberRecord,
     StorageGroupRecord, StorageRecord, TaskRecord, WorkflowRecord,
 };
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use storage_core::{StorageEntry, StorageProvider, UploadRequest};
 use storage_gitee::{GiteeCredentials, GiteeStorage, GiteeStorageConfig};
@@ -170,7 +170,6 @@ pub struct TaskView {
     pub error: Option<String>,
 }
 
-
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateStorageGroupMemberInput {
@@ -230,7 +229,6 @@ pub struct AssetView {
     pub created_at: String,
     pub deployments: Vec<AssetDeploymentView>,
 }
-
 
 #[derive(Debug, Clone)]
 struct RecipeDefinition {
@@ -504,7 +502,9 @@ fn normalize_public_base_url(value: Option<&str>) -> CmdResult<String> {
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .map(|value| value.trim_end_matches('/').to_string())
-        .ok_or_else(|| "Public URL is required so uploaded images can be viewed by other people".into())
+        .ok_or_else(|| {
+            "Public URL is required so uploaded images can be viewed by other people".into()
+        })
 }
 
 #[tauri::command]
@@ -527,7 +527,13 @@ pub async fn create_object_storage(
         return Err("Endpoint must start with http:// or https://".into());
     }
     let public_base_url = normalize_public_base_url(input.public_base_url.as_deref())?;
-    let root = input.root.as_deref().unwrap_or_default().trim().trim_matches('/').to_string();
+    let root = input
+        .root
+        .as_deref()
+        .unwrap_or_default()
+        .trim()
+        .trim_matches('/')
+        .to_string();
 
     let (config_json, credential_json, capabilities_json) = match input.provider_key.as_str() {
         "oss" => {
@@ -541,8 +547,12 @@ pub async fn create_object_storage(
                 access_key_id: input.access_key_id.trim().into(),
                 access_key_secret: input.secret_access_key.clone(),
             };
-            let provider = OpenDalStorage::oss(&config, &credentials).map_err(|error| error.to_string())?;
-            provider.test_connection().await.map_err(|error| error.to_string())?;
+            let provider =
+                OpenDalStorage::oss(&config, &credentials).map_err(|error| error.to_string())?;
+            provider
+                .test_connection()
+                .await
+                .map_err(|error| error.to_string())?;
             (
                 serde_json::to_value(config).map_err(|error| error.to_string())?,
                 serde_json::to_value(credentials).map_err(|error| error.to_string())?,
@@ -560,8 +570,12 @@ pub async fn create_object_storage(
                 secret_id: input.access_key_id.trim().into(),
                 secret_key: input.secret_access_key.clone(),
             };
-            let provider = OpenDalStorage::cos(&config, &credentials).map_err(|error| error.to_string())?;
-            provider.test_connection().await.map_err(|error| error.to_string())?;
+            let provider =
+                OpenDalStorage::cos(&config, &credentials).map_err(|error| error.to_string())?;
+            provider
+                .test_connection()
+                .await
+                .map_err(|error| error.to_string())?;
             (
                 serde_json::to_value(config).map_err(|error| error.to_string())?,
                 serde_json::to_value(credentials).map_err(|error| error.to_string())?,
@@ -573,7 +587,10 @@ pub async fn create_object_storage(
 
     let id = Uuid::new_v4();
     let credential_ref = format!("storage:{id}");
-    state.credentials.set_json(&credential_ref, &credential_json).map_err(|error| error.to_string())?;
+    state
+        .credentials
+        .set_json(&credential_ref, &credential_json)
+        .map_err(|error| error.to_string())?;
     let now = Utc::now();
     let record = StorageRecord {
         id,
@@ -588,7 +605,9 @@ pub async fn create_object_storage(
         updated_at: now,
     };
     if let Err(error) = state.storages.insert(&record).await {
-        if let Some(key) = record.credential_ref.as_deref() { let _ = state.credentials.delete(key); }
+        if let Some(key) = record.credential_ref.as_deref() {
+            let _ = state.credentials.delete(key);
+        }
         return Err(error.to_string());
     }
     Ok(storage_view(&record))
@@ -607,19 +626,32 @@ pub async fn create_webdav_storage(
     }
     let config = WebDavStorageConfig {
         endpoint: input.endpoint.trim().trim_end_matches('/').into(),
-        root: input.root.as_deref().unwrap_or_default().trim().trim_matches('/').into(),
+        root: input
+            .root
+            .as_deref()
+            .unwrap_or_default()
+            .trim()
+            .trim_matches('/')
+            .into(),
         public_base_url: Some(normalize_public_base_url(input.public_base_url.as_deref())?),
     };
     let credentials = WebDavCredentials {
         username: input.username.trim().into(),
         password: input.password.clone(),
     };
-    let provider = OpenDalStorage::webdav(&config, &credentials).map_err(|error| error.to_string())?;
-    provider.test_connection().await.map_err(|error| error.to_string())?;
+    let provider =
+        OpenDalStorage::webdav(&config, &credentials).map_err(|error| error.to_string())?;
+    provider
+        .test_connection()
+        .await
+        .map_err(|error| error.to_string())?;
 
     let id = Uuid::new_v4();
     let credential_ref = format!("storage:{id}");
-    state.credentials.set_json(&credential_ref, &credentials).map_err(|error| error.to_string())?;
+    state
+        .credentials
+        .set_json(&credential_ref, &credentials)
+        .map_err(|error| error.to_string())?;
     let now = Utc::now();
     let record = StorageRecord {
         id,
@@ -628,13 +660,16 @@ pub async fn create_webdav_storage(
         category: "protocol".into(),
         credential_ref: Some(credential_ref),
         config_json: serde_json::to_value(&config).map_err(|error| error.to_string())?,
-        capabilities_json: serde_json::to_value(provider.capabilities()).map_err(|error| error.to_string())?,
+        capabilities_json: serde_json::to_value(provider.capabilities())
+            .map_err(|error| error.to_string())?,
         enabled: true,
         created_at: now,
         updated_at: now,
     };
     if let Err(error) = state.storages.insert(&record).await {
-        if let Some(key) = record.credential_ref.as_deref() { let _ = state.credentials.delete(key); }
+        if let Some(key) = record.credential_ref.as_deref() {
+            let _ = state.credentials.delete(key);
+        }
         return Err(error.to_string());
     }
     Ok(storage_view(&record))
@@ -707,7 +742,13 @@ pub async fn create_repository_storage(
 ) -> CmdResult<StorageView> {
     validate_repository_input(&input)?;
 
-    let root = input.root.as_deref().unwrap_or_default().trim().trim_matches('/').to_string();
+    let root = input
+        .root
+        .as_deref()
+        .unwrap_or_default()
+        .trim()
+        .trim_matches('/')
+        .to_string();
     let public_base_url = input
         .public_base_url
         .as_deref()
@@ -804,10 +845,7 @@ pub async fn list_storages(state: State<'_, AppState>) -> CmdResult<Vec<StorageV
 }
 
 #[tauri::command]
-pub async fn delete_storage(
-    state: State<'_, AppState>,
-    storage_id: String,
-) -> CmdResult<()> {
+pub async fn delete_storage(state: State<'_, AppState>, storage_id: String) -> CmdResult<()> {
     let id = Uuid::parse_str(&storage_id).map_err(|error| error.to_string())?;
     let record = state
         .storages
@@ -889,7 +927,10 @@ pub async fn create_storage_group(
     if name.is_empty() {
         return Err("Storage Group name cannot be empty".into());
     }
-    if !matches!(input.strategy.as_str(), "mirror_all" | "primary_with_backups") {
+    if !matches!(
+        input.strategy.as_str(),
+        "mirror_all" | "primary_with_backups"
+    ) {
         return Err("Unsupported storage group strategy".into());
     }
     if input.members.len() < 2 {
@@ -960,14 +1001,14 @@ pub async fn list_storage_groups(state: State<'_, AppState>) -> CmdResult<Vec<St
 }
 
 #[tauri::command]
-pub async fn delete_storage_group(
-    state: State<'_, AppState>,
-    group_id: String,
-) -> CmdResult<()> {
+pub async fn delete_storage_group(state: State<'_, AppState>, group_id: String) -> CmdResult<()> {
     let id = Uuid::parse_str(&group_id).map_err(|error| error.to_string())?;
-    state.groups.delete(id).await.map_err(|error| error.to_string())
+    state
+        .groups
+        .delete(id)
+        .await
+        .map_err(|error| error.to_string())
 }
-
 
 #[tauri::command]
 pub fn list_recipes() -> Vec<RecipeView> {
@@ -1116,10 +1157,7 @@ pub async fn set_default_workflow(
 }
 
 #[tauri::command]
-pub async fn delete_workflow(
-    state: State<'_, AppState>,
-    workflow_id: String,
-) -> CmdResult<()> {
+pub async fn delete_workflow(state: State<'_, AppState>, workflow_id: String) -> CmdResult<()> {
     let id = Uuid::parse_str(&workflow_id).map_err(|error| error.to_string())?;
     state
         .workflows
@@ -1258,15 +1296,16 @@ pub async fn publish_clipboard_image_with_workflow(
     // on Linux if it is accessed from the UI/main thread. Only the owned RGBA bytes
     // cross back into the async task; no large pixel array crosses Tauri IPC.
     let clipboard_app = app.clone();
-    let (rgba, width, height) = tokio::task::spawn_blocking(move || -> CmdResult<(Vec<u8>, u32, u32)> {
-        let image = clipboard_app
-            .clipboard()
-            .read_image()
-            .map_err(|_| "剪贴板中没有可读取的图片".to_string())?;
-        Ok((image.rgba().to_vec(), image.width(), image.height()))
-    })
-    .await
-    .map_err(|error| format!("读取剪贴板任务失败: {error}"))??;
+    let (rgba, width, height) =
+        tokio::task::spawn_blocking(move || -> CmdResult<(Vec<u8>, u32, u32)> {
+            let image = clipboard_app
+                .clipboard()
+                .read_image()
+                .map_err(|_| "剪贴板中没有可读取的图片".to_string())?;
+            Ok((image.rgba().to_vec(), image.width(), image.height()))
+        })
+        .await
+        .map_err(|error| format!("读取剪贴板任务失败: {error}"))??;
 
     if width == 0 || height == 0 {
         return Err("剪贴板图片尺寸无效".into());
@@ -1275,9 +1314,7 @@ pub async fn publish_clipboard_image_with_workflow(
     if pixel_count > 32_000_000 {
         return Err("剪贴板图片超过 3200 万像素限制".into());
     }
-    let expected = pixel_count
-        .checked_mul(4)
-        .ok_or("剪贴板图片尺寸过大")? as usize;
+    let expected = pixel_count.checked_mul(4).ok_or("剪贴板图片尺寸过大")? as usize;
     if rgba.len() != expected {
         return Err("剪贴板图片数据长度与尺寸不匹配".into());
     }
@@ -1306,16 +1343,8 @@ pub async fn publish_clipboard_image_with_workflow(
             emit_task(&app, task_id, "failed", 100, Some(error));
             return;
         };
-        run_clipboard_workflow_publish_task(
-            app,
-            app_state,
-            workflow,
-            rgba,
-            width,
-            height,
-            task_id,
-        )
-        .await;
+        run_clipboard_workflow_publish_task(app, app_state, workflow, rgba, width, height, task_id)
+            .await;
     });
     Ok(task_id.to_string())
 }
@@ -1400,7 +1429,10 @@ async fn run_url_workflow_publish_task(
             .error_for_status()
             .map_err(|error| format!("远端服务器拒绝请求: {error}"))?;
         const MAX_REMOTE_BYTES: u64 = 32 * 1024 * 1024;
-        if response.content_length().is_some_and(|size| size > MAX_REMOTE_BYTES) {
+        if response
+            .content_length()
+            .is_some_and(|size| size > MAX_REMOTE_BYTES)
+        {
             return Err("远端图片超过 32 MB 限制".into());
         }
         let content_type = response
@@ -1713,7 +1745,6 @@ pub async fn publish_files(
     Ok(task_ids)
 }
 
-
 async fn run_workflow_publish_task(
     app: AppHandle,
     state: AppState,
@@ -1809,7 +1840,10 @@ async fn run_workflow_publish_task(
             .map_err(|error| error.to_string())?;
         emit_task(&app, task_id, "running", 82, None);
 
-        let success_count = outcomes.iter().filter(|outcome| outcome.error.is_none()).count();
+        let success_count = outcomes
+            .iter()
+            .filter(|outcome| outcome.error.is_none())
+            .count();
         if success_count == 0 {
             let errors = outcomes
                 .iter()
@@ -1950,10 +1984,7 @@ async fn run_publish_task(
             .unwrap_or("asset.bin");
         let safe_name = sanitize_filename(file_name);
         let date = Utc::now().format("%Y/%m");
-        let remote_path = format!(
-            "uploads/{date}/{}-{safe_name}",
-            Uuid::new_v4().simple()
-        );
+        let remote_path = format!("uploads/{date}/{}-{safe_name}", Uuid::new_v4().simple());
         let mime = mime_guess::from_path(&path)
             .first_or_octet_stream()
             .essence_str()
@@ -2027,7 +2058,6 @@ async fn run_publish_task(
     }
 }
 
-
 #[derive(Clone)]
 struct GroupUploadTarget {
     storage_id: Uuid,
@@ -2078,7 +2108,6 @@ async fn upload_group_target(
         },
     }
 }
-
 
 async fn publish_group_bytes(
     state: &AppState,
@@ -2195,10 +2224,7 @@ async fn run_group_publish_task(
         let content_hash = hex::encode(Sha256::digest(bytes.as_ref()));
         let safe_name = sanitize_filename(&file_name);
         let date = Utc::now().format("%Y/%m");
-        let remote_path = format!(
-            "uploads/{date}/{}-{safe_name}",
-            Uuid::new_v4().simple()
-        );
+        let remote_path = format!("uploads/{date}/{}-{safe_name}", Uuid::new_v4().simple());
 
         state
             .tasks
@@ -2291,7 +2317,10 @@ async fn run_group_publish_task(
             .map_err(|error| error.to_string())?;
         emit_task(&app, task_id, "running", 82, None);
 
-        let success_count = outcomes.iter().filter(|outcome| outcome.error.is_none()).count();
+        let success_count = outcomes
+            .iter()
+            .filter(|outcome| outcome.error.is_none())
+            .count();
         if success_count == 0 {
             let errors = outcomes
                 .iter()
@@ -2688,10 +2717,16 @@ async fn run_delete_task(app: AppHandle, state: AppState, asset_id: Uuid, task_i
             {
                 Some(storage) => storage,
                 None => {
-                    failures.push(format!("Storage {} no longer exists", deployment.storage_id));
+                    failures.push(format!(
+                        "Storage {} no longer exists",
+                        deployment.storage_id
+                    ));
                     state
                         .assets
-                        .update_deployment_status(deployment.deployment_id, DeploymentStatus::Failed)
+                        .update_deployment_status(
+                            deployment.deployment_id,
+                            DeploymentStatus::Failed,
+                        )
                         .await
                         .map_err(|error| error.to_string())?;
                     continue;
@@ -2704,7 +2739,10 @@ async fn run_delete_task(app: AppHandle, state: AppState, asset_id: Uuid, task_i
                     failures.push(format!("{}: {error}", storage.name));
                     state
                         .assets
-                        .update_deployment_status(deployment.deployment_id, DeploymentStatus::Failed)
+                        .update_deployment_status(
+                            deployment.deployment_id,
+                            DeploymentStatus::Failed,
+                        )
                         .await
                         .map_err(|db_error| db_error.to_string())?;
                     continue;
@@ -2773,9 +2811,7 @@ async fn run_delete_task(app: AppHandle, state: AppState, asset_id: Uuid, task_i
 }
 
 #[tauri::command]
-pub async fn get_output_preferences(
-    state: State<'_, AppState>,
-) -> CmdResult<OutputPreferences> {
+pub async fn get_output_preferences(state: State<'_, AppState>) -> CmdResult<OutputPreferences> {
     let value = state
         .settings
         .get(OUTPUT_PREFERENCES_KEY)
@@ -2798,9 +2834,7 @@ pub async fn save_output_preferences(
     ) {
         return Err("Unsupported output format".into());
     }
-    if preferences.default_format == "custom"
-        && !preferences.custom_template.contains("{url}")
-    {
+    if preferences.default_format == "custom" && !preferences.custom_template.contains("{url}") {
         return Err("Custom output template must contain {url}".into());
     }
     let value = serde_json::to_value(&preferences).map_err(|error| error.to_string())?;
@@ -3026,13 +3060,7 @@ fn emit_asset_published(app: &AppHandle, name: &str, public_url: Option<&str>) {
     );
 }
 
-fn emit_task(
-    app: &AppHandle,
-    id: Uuid,
-    status: &str,
-    progress: u8,
-    error: Option<String>,
-) {
+fn emit_task(app: &AppHandle, id: Uuid, status: &str, progress: u8, error: Option<String>) {
     let _ = app.emit(
         "task://updated",
         json!({
@@ -3093,8 +3121,16 @@ fn task_view(record: TaskRecord) -> TaskView {
                 .get("workflowName")
                 .and_then(Value::as_str)
                 .unwrap_or("方案");
-            let width = record.payload_json.get("width").and_then(Value::as_u64).unwrap_or(0);
-            let height = record.payload_json.get("height").and_then(Value::as_u64).unwrap_or(0);
+            let width = record
+                .payload_json
+                .get("width")
+                .and_then(Value::as_u64)
+                .unwrap_or(0);
+            let height = record
+                .payload_json
+                .get("height")
+                .and_then(Value::as_u64)
+                .unwrap_or(0);
             (format!("剪贴板发布 {width}×{height}"), workflow.into())
         }
         "workflow_publish" => {
