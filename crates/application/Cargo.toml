@@ -1,0 +1,11 @@
+[package]
+name = "application"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+domain = { path = "../domain" }
+storage-core = { path = "../storage-core" }
+thiserror.workspace = true
+uuid.workspace = true

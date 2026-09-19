@@ -1,0 +1,43 @@
+{
+  "product": "Multi-cloud Publisher",
+  "version": "1.0.0",
+  "release_tier": "stable-source-baseline",
+  "generated_at_utc": "2026-09-16T13:30:59.703272+00:00",
+  "providers": [
+    "Cloudflare R2",
+    "S3 Compatible",
+    "Aliyun OSS",
+    "Tencent COS",
+    "GitHub",
+    "Gitee",
+    "WebDAV"
+  ],
+  "publish_inputs": [
+    "local files",
+    "image URLs",
+    "system clipboard image"
+  ],
+  "workflow": [
+    "resize",
+    "jpeg/png/webp/original",
+    "quality",
+    "rename template",
+    "single storage",
+    "storage group"
+  ],
+  "validation": [
+    "JSON/TOML parse",
+    "SQLite migrations 0001-0006",
+    "Tauri command contract match",
+    "TypeScript/TSX syntax parse",
+    "TODO/FIXME scan",
+    "ZIP integrity"
+  ],
+  "not_executed_here": [
+    "cargo check",
+    "cargo test",
+    "npm build",
+    "tauri build"
+  ],
+  "reason": "Packaging environment has no Rust toolchain and cannot complete npm dependency installation."
+}

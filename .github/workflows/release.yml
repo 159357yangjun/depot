@@ -1,0 +1,69 @@
+name: Release Bundle
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  windows-bundle:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - name: Validate source contracts
+        run: |
+          python scripts/validate.py
+          python scripts/check_contracts.py
+          cargo fmt --all -- --check
+          cargo check --workspace
+          cargo test --workspace
+
+      - name: Install desktop dependencies
+        working-directory: apps/desktop
+        run: npm install
+
+      - name: Build desktop frontend
+        working-directory: apps/desktop
+        run: npm run build
+
+      - name: Build Windows bundles
+        working-directory: apps/desktop
+        run: npm run tauri build
+
+      - name: Upload Windows installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: multicloud-publisher-windows
+          path: target/release/bundle/**
+          if-no-files-found: error
+
+  docs-bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install docs dependencies
+        working-directory: website
+        run: npm install
+      - name: Build static docs
+        working-directory: website
+        run: npm run build
+      - name: Upload static docs
+        uses: actions/upload-artifact@v4
+        with:
+          name: multicloud-publisher-docs
+          path: website/dist/**
+          if-no-files-found: error
