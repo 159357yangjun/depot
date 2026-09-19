@@ -4,7 +4,6 @@ import {
   Cloud,
   FolderOpen,
   GitBranch,
-  Github,
   Layers3,
   LoaderCircle,
   Plus,
@@ -31,7 +30,7 @@ import {
 import type { StorageView, SupportedProviderKey } from '../types'
 
 const providerIcon = (id: string, category: string) =>
-  id === 'github' ? Github : id === 'gitee' ? GitBranch : category === 'protocol' ? Server : Cloud
+  id === 'github' ? GitBranch : id === 'gitee' ? GitBranch : category === 'protocol' ? Server : Cloud
 
 function isSupportedProvider(id: string): id is SupportedProviderKey {
   return ['r2', 's3', 'oss', 'cos', 'github', 'gitee', 'webdav'].includes(id)

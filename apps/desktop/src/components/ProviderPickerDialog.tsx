@@ -1,4 +1,4 @@
-import { Cloud, GitBranch, Github, HardDrive, Server, X } from 'lucide-react'
+import { Cloud, GitBranch, HardDrive, Server, X } from 'lucide-react'
 import type { SupportedProviderKey } from '../types'
 
 const providers: Array<{
@@ -13,7 +13,7 @@ const providers: Array<{
   { id: 'oss', name: '阿里云 OSS', detail: '国内主流对象存储，适合网站与静态资源', badge: '国内', setupMinutes: 8, icon: Cloud },
   { id: 'cos', name: '腾讯云 COS', detail: '国内主流对象存储，适合网站与静态资源', badge: '国内', setupMinutes: 8, icon: Cloud },
   { id: 's3', name: 'S3 Compatible', detail: 'AWS、MinIO 与其他 S3 兼容服务', badge: '通用', setupMinutes: 6, icon: Server },
-  { id: 'github', name: 'GitHub', detail: 'README、项目文档与少量仓库资源', badge: '开发者', setupMinutes: 3, icon: Github },
+  { id: 'github', name: 'GitHub', detail: 'README、项目文档与少量仓库资源', badge: '开发者', setupMinutes: 3, icon: GitBranch },
   { id: 'gitee', name: 'Gitee', detail: '国内仓库资源与镜像备份', badge: '开发者', setupMinutes: 3, icon: GitBranch },
   { id: 'webdav', name: 'WebDAV', detail: 'NAS、自建服务与通用文件服务器', badge: '自建', setupMinutes: 5, icon: HardDrive },
 ]
