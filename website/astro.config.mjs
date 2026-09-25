@@ -4,8 +4,8 @@ import starlight from '@astrojs/starlight'
 export default defineConfig({
   integrations: [
     starlight({
-      title: 'Publisher Guide',
-      description: 'Multi-cloud Publisher 的配置与 Recipe 指南',
+      title: '图床 · Image Hosting Platform',
+      description: 'A multi-cloud image hosting, management and publishing platform.',
       sidebar: [
         { label: '开始', items: [{ label: '5 分钟上手', slug: 'index' }] },
         {

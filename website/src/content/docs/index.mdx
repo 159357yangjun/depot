@@ -5,13 +5,17 @@ description: 从零到第一条公网图片 URL。
 
 import { Steps } from '@astrojs/starlight/components'
 
-Multi-cloud Publisher 的目标不是让你先学习“图床”，而是尽快得到一条别人能访问的图片链接。
+# 图床 | Image Hosting Platform
+
+**A multi-cloud image hosting, management and publishing platform.**
+
+图床把图片处理、云端托管、公开链接、图库管理和多云发布放进同一套流程。第一次使用不需要先理解复杂的 Provider / Workflow 模型，先连接一个云端并发布第一张图片即可。
 
 <Steps>
-1. **连接一个云端**：新用户建议 Cloudflare R2；开发文档可以选择 GitHub / Gitee。
-2. **添加一个 Recipe**：推荐“博客 · WebP 均衡”，它会自动缩放、转 WebP、重命名并发布。
-3. **拖入图片**：桌面端选择默认方案后直接发布，完成后在“资源”页复制 URL / Markdown。
-4. **Typora 用户**：到“设置 → Typora 集成”点击“一键开始配置”，以后 Typora 可直接调用默认 Workflow。
+1. **连接一个云端**：新用户可选择 Cloudflare R2；开发文档或轻量场景可以选择 GitHub / Gitee。
+2. **设置默认发布目标**：普通用户只需要选择一个默认 Storage；需要多云可靠性时再创建 Primary / Mirror / Backup Storage Group。
+3. **发布图片**：拖拽、文件、剪贴板、URL、Typora、快捷键和 Local HTTP API 共用同一个发布核心。
+4. **复制结果**：发布完成后直接得到 URL / Markdown / HTML / BBCode，并可在“图库”管理真实远端文件。
 </Steps>
 
 > Token 和 Secret 只在桌面端录入并写入系统凭据库。教程页面不会要求你粘贴密钥。

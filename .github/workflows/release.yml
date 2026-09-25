@@ -59,18 +59,29 @@ jobs:
       - name: Upload Windows installers
         uses: actions/upload-artifact@v4
         with:
-          name: multicloud-publisher-windows
+          name: image-hosting-platform-windows
           path: target/release/bundle/**
           if-no-files-found: error
 
       - name: Upload dependency locks used by this release
         uses: actions/upload-artifact@v4
         with:
-          name: multicloud-publisher-dependency-locks
+          name: image-hosting-platform-dependency-locks
           path: |
             Cargo.lock
             apps/desktop/package-lock.json
             website/package-lock.json
+          if-no-files-found: error
+
+      - name: Create clean tracked-source archive
+        shell: pwsh
+        run: git archive --format=zip -o image-hosting-platform-source.zip HEAD
+
+      - name: Upload clean source archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: image-hosting-platform-source
+          path: image-hosting-platform-source.zip
           if-no-files-found: error
 
   docs-bundle:
@@ -92,6 +103,6 @@ jobs:
       - name: Upload static docs
         uses: actions/upload-artifact@v4
         with:
-          name: multicloud-publisher-docs
+          name: image-hosting-platform-docs
           path: website/dist/**
           if-no-files-found: error

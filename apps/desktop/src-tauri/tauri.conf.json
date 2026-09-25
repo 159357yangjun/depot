@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Multi-cloud Publisher",
+  "productName": "Image Hosting Platform",
   "version": "1.3.5",
   "identifier": "dev.multicloud.publisher",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Multi-cloud Publisher",
+        "title": "图床 | Image Hosting Platform",
         "width": 1280,
         "height": 820,
         "minWidth": 640,

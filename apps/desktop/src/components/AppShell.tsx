@@ -25,8 +25,8 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="flex items-center gap-3 px-2 py-3">
             <div className="grid size-9 place-items-center rounded-2xl bg-slate-950 text-white shadow-sm"><Zap size={17} /></div>
             <div className="app-brand-copy">
-              <div className="text-[15px] font-semibold tracking-[-0.02em]">Publisher</div>
-              <div className="text-[11px] text-slate-400">Multi-cloud workspace</div>
+              <div className="text-[15px] font-semibold tracking-[-0.02em]">图床</div>
+              <div className="text-[11px] text-slate-400">Image Hosting Platform</div>
             </div>
           </div>
 
@@ -59,8 +59,8 @@ export function AppShell({ children }: { children: ReactNode }) {
               </button>
             )}
             <div className="app-sidebar-footer rounded-2xl border border-slate-200/80 bg-slate-50/80 p-3">
-              <div className="text-xs font-medium text-slate-700">v1.3.5 · Task Control + Observability</div>
-              <div className="mt-1 text-[11px] leading-5 text-slate-400">生命周期插件 · 批量云端管理</div>
+              <div className="text-xs font-medium text-slate-700">v1.3.5 · Multi-cloud Image Hosting</div>
+              <div className="mt-1 text-[11px] leading-5 text-slate-400">托管 · 管理 · 发布 · 多云可靠性</div>
               <div className="mt-3 flex items-center gap-2 text-[11px] text-emerald-600"><span className="size-1.5 rounded-full bg-emerald-500" /> 发布入口已统一</div>
             </div>
           </div>
