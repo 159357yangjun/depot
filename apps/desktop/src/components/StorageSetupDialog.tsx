@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { BookOpen, Cloud, ExternalLink, GitBranch, Github, HardDrive, LoaderCircle, Server, X } from 'lucide-react'
+import { BookOpen, Cloud, ExternalLink, GitBranch, GitFork, HardDrive, LoaderCircle, Server, X } from 'lucide-react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   createObjectStorage,
@@ -47,7 +47,7 @@ export function StorageSetupDialog({
   const isObject = provider === 'oss' || provider === 'cos'
   const isWebDav = provider === 'webdav'
   const Icon = provider === 'github'
-    ? Github
+    ? GitFork
     : provider === 'gitee'
       ? GitBranch
       : provider === 'webdav'
