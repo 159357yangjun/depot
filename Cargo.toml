@@ -17,7 +17,7 @@ members = [
 ]
 
 [workspace.package]
-version = "1.3.8"
+version = "1.3.9"
 edition = "2024"
 license = "MIT"
 authors = ["Multi-cloud Publisher Contributors"]
@@ -30,7 +30,7 @@ chrono = { version = "0.4", features = ["serde"] }
 hex = "0.4"
 futures = "0.3"
 mime_guess = "2"
-reqwest = { version = "0.13", features = ["json", "multipart"] }
+reqwest = { version = "0.13", features = ["json", "multipart", "query"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
