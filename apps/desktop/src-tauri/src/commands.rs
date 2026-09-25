@@ -2194,19 +2194,21 @@ async fn run_workflow_publish_task(
                     .map_err(|error| error.to_string())?
                     .ok_or("Workflow storage no longer exists")?;
                 let provider = build_provider(&state, &storage)?;
-                let outcome = upload_group_target(
-                    GroupUploadTarget {
+                PublisherCore::publish_group(
+                    StorageGroupStrategy::MirrorAll,
+                    vec![PublishMember {
                         storage_id: storage.id,
                         storage_name: storage.name,
                         role: DeploymentRole::Primary,
+                        priority: 0,
                         provider,
-                    },
+                    }],
                     prepared.body.clone(),
                     prepared.remote_path.clone(),
                     prepared.mime_type.clone(),
                 )
-                .await;
-                vec![outcome]
+                .await
+                .map_err(|error| error.to_string())?
             }
             PublishTarget::StorageGroup { storage_group_id } => {
                 let group = state
