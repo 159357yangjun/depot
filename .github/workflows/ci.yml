@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  desktop-check:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - name: Static validation
+        run: python scripts/validate.py
+      - name: Command contract validation
+        run: python scripts/check_contracts.py
+      - name: User-flow contract validation
+        run: python scripts/check_user_flow.py
+      - name: Generate dependency locks
+        shell: pwsh
+        run: |
+          cargo generate-lockfile
+          Push-Location apps/desktop
+          npm install --package-lock-only --ignore-scripts
+          Pop-Location
+          Push-Location website
+          npm install --package-lock-only --ignore-scripts
+          Pop-Location
+      - name: Rust format
+        run: cargo fmt --all -- --check
+      - name: Rust check
+        run: cargo check --workspace --locked
+      - name: Rust tests
+        run: cargo test --workspace --locked
+      - name: Desktop build
+        working-directory: apps/desktop
+        run: |
+          npm ci
+          npm run build
+      - name: Docs build
+        working-directory: website
+        run: |
+          npm ci
+          npm run build
+      - name: Upload resolved dependency locks
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-locks
+          path: |
+            Cargo.lock
+            apps/desktop/package-lock.json
+            website/package-lock.json
+          if-no-files-found: error

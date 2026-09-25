@@ -1,0 +1,24 @@
+# Node
+node_modules/
+dist/
+*.log
+
+# Rust
+target/
+
+# Tauri
+apps/desktop/src-tauri/gen/
+
+# IDE
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Local data
+*.db
+*.db-shm
+*.db-wal
+.env
+.env.*
+!.env.example

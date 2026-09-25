@@ -1,0 +1,48 @@
+---
+title: Typora 一键工作流
+summary: 让 Typora 直接调用 Publisher 默认 Workflow 上传图片。
+---
+
+import { Steps } from '@astrojs/starlight/components'
+
+Publisher 可以作为 Typora 的 **Custom Command / 自定义命令** 上传器。Typora 只负责把本地图片路径交给 Publisher；压缩、改名、GitHub / R2 / 多云发布都继续使用 Publisher 的默认 Workflow。
+
+## 开始之前
+
+- 已连接至少一个 Storage；
+- 已创建至少一个 Workflow；
+- 希望 Typora 使用的 Workflow 已设为 **默认**；
+- 默认目标在“云端”页面可以通过连接测试。
+
+## 一键开始配置
+
+<Steps>
+1. 打开 **Publisher → 设置 → Typora 集成**。
+2. 确认“桥接已就绪”，点击 **一键开始配置**。Publisher 会复制完整 Custom Command 并打开 Typora。
+3. 在 Typora 打开 **偏好设置 → 图像**，上传服务选择 **Custom Command / 自定义命令**。
+4. 粘贴刚才复制的命令，然后点击 Typora 的上传器验证按钮。
+</Steps>
+
+配置完成后，Typora 插入、粘贴、拖入图片，或执行“上传所有本地图片”时，可以直接调用 Publisher。桌面主窗口不需要一直打开。
+
+## 为什么用默认 Workflow
+
+Typora 不再保存另一套 GitHub / R2 参数。例如把默认 Workflow 从：
+
+```text
+WebP Q90 → GitHub
+```
+
+切换成：
+
+```text
+WebP Q82 → R2 + Gitee Storage Group
+```
+
+Typora 不需要重新填写 Token，也不用修改上传命令。
+
+## 上传结果
+
+Publisher 只有在云端 Provider 返回成功后才会返回 URL。GitHub Provider 还会再次读取远端文件 SHA 做确认，因此 Typora 收到 URL 时，文件应已经真实存在于仓库。
+
+如果失败，可打开 Publisher 的 **任务** 页面查看原因；例如 GitHub `401 Bad credentials` 表示 Token 无效、过期或被撤销。

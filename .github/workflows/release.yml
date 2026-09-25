@@ -1,0 +1,97 @@
+name: Release Bundle
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  windows-bundle:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - name: Validate source contracts
+        run: |
+          python scripts/validate.py
+          python scripts/check_contracts.py
+          python scripts/check_user_flow.py
+
+      - name: Resolve and freeze dependency graph for this release run
+        shell: pwsh
+        run: |
+          cargo generate-lockfile
+          Push-Location apps/desktop
+          npm install --package-lock-only --ignore-scripts
+          Pop-Location
+          Push-Location website
+          npm install --package-lock-only --ignore-scripts
+          Pop-Location
+
+      - name: Validate locked Rust dependency graph
+        run: |
+          cargo fmt --all -- --check
+          cargo check --workspace --locked
+          cargo test --workspace --locked
+
+      - name: Install desktop dependencies from lock
+        working-directory: apps/desktop
+        run: npm ci
+
+      - name: Build desktop frontend
+        working-directory: apps/desktop
+        run: npm run build
+
+      - name: Build Windows bundles
+        working-directory: apps/desktop
+        run: npm run tauri build
+
+      - name: Upload Windows installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: multicloud-publisher-windows
+          path: target/release/bundle/**
+          if-no-files-found: error
+
+      - name: Upload dependency locks used by this release
+        uses: actions/upload-artifact@v4
+        with:
+          name: multicloud-publisher-dependency-locks
+          path: |
+            Cargo.lock
+            apps/desktop/package-lock.json
+            website/package-lock.json
+          if-no-files-found: error
+
+  docs-bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Resolve docs lock
+        working-directory: website
+        run: npm install --package-lock-only --ignore-scripts
+      - name: Install docs dependencies from lock
+        working-directory: website
+        run: npm ci
+      - name: Build static docs
+        working-directory: website
+        run: npm run build
+      - name: Upload static docs
+        uses: actions/upload-artifact@v4
+        with:
+          name: multicloud-publisher-docs
+          path: website/dist/**
+          if-no-files-found: error
