@@ -2201,7 +2201,7 @@ async fn run_workflow_publish_task(
                         storage_name: storage.name,
                         role: DeploymentRole::Primary,
                         priority: 0,
-                        provider,
+                        provider: Ok(provider),
                     }],
                     prepared.body.clone(),
                     prepared.remote_path.clone(),
