@@ -2,24 +2,97 @@
 
 :root {
   font-family: Inter, "SF Pro Display", "SF Pro Text", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
-  color: #0f172a;
-  background: #f6f7fb;
+  color: var(--text-primary);
+  background: var(--app-bg);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+
+  /* v1.4 theme tokens: components should gradually depend on these instead of hard-coded palette values. */
   --app-bg: #f6f7fb;
+  --surface: rgba(255, 255, 255, .94);
+  --surface-soft: rgba(248, 250, 252, .9);
+  --surface-glass: rgba(255, 255, 255, .78);
+  --surface-hover: rgba(248, 250, 252, .96);
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --border: rgba(226, 232, 240, .9);
+  --accent: #4f46e5;
+  --accent-soft: rgba(79, 70, 229, .1);
+  --success: #059669;
+  --warning: #d97706;
+  --danger: #dc2626;
+  --radius-card: 24px;
+  --radius-control: 12px;
+  --shadow-card: 0 8px 30px rgba(15, 23, 42, .04);
+  --backdrop-blur: 18px;
+  --wallpaper: none;
+}
+
+:root[data-theme="midnight"] {
+  --app-bg: #090d16;
+  --surface: rgba(15, 23, 42, .88);
+  --surface-soft: rgba(30, 41, 59, .82);
+  --surface-glass: rgba(15, 23, 42, .7);
+  --surface-hover: rgba(30, 41, 59, .96);
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-muted: #64748b;
+  --border: rgba(71, 85, 105, .55);
+  --accent: #818cf8;
+  --accent-soft: rgba(129, 140, 248, .14);
+  --shadow-card: 0 12px 40px rgba(0, 0, 0, .26);
+}
+
+:root[data-theme="sakura"] {
+  --app-bg: #fff8fb;
+  --surface: rgba(255, 255, 255, .92);
+  --surface-soft: rgba(255, 245, 249, .9);
+  --surface-glass: rgba(255, 255, 255, .74);
+  --surface-hover: rgba(255, 247, 250, .98);
+  --text-primary: #28151e;
+  --text-secondary: #6f4a5b;
+  --text-muted: #ad8798;
+  --border: rgba(244, 212, 226, .86);
+  --accent: #db5b8b;
+  --accent-soft: rgba(219, 91, 139, .11);
 }
 
 * { box-sizing: border-box; }
 html, body, #root { min-height: 100%; margin: 0; }
-body { min-width: 0; overflow-x: hidden; background: var(--app-bg); }
-button, input { font: inherit; }
+body {
+  min-width: 0;
+  overflow-x: hidden;
+  color: var(--text-primary);
+  background-color: var(--app-bg);
+  background-image: var(--wallpaper);
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  transition: background-color .2s ease, color .2s ease;
+}
+button, input, select, textarea { font: inherit; }
 button { cursor: pointer; }
-::selection { background: #dbeafe; }
+::selection { background: var(--accent-soft); }
 
 ::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-thumb { background: rgba(100, 116, 139, .22); border-radius: 999px; }
+::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--text-muted) 28%, transparent); border-radius: 999px; }
 ::-webkit-scrollbar-track { background: transparent; }
 
+/* Shared primitives for the upcoming skin system. */
+.theme-surface {
+  background: var(--surface);
+  border-color: var(--border);
+  box-shadow: var(--shadow-card);
+}
+.theme-glass {
+  background: var(--surface-glass);
+  border-color: var(--border);
+  backdrop-filter: blur(var(--backdrop-blur));
+}
+.theme-accent { color: var(--accent); }
+.theme-accent-bg { background: var(--accent); }
+.theme-muted { color: var(--text-muted); }
 
 .app-sidebar, .app-main { transition: width .18s ease, margin-left .18s ease; }
 
