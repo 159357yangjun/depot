@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react'
-import { BookOpen, Boxes, Cloud, Images, ListTodo, Plug, Settings, Upload, Zap } from 'lucide-react'
+import { useEffect, useState, type ReactNode } from 'react'
+import { BookOpen, Boxes, Cloud, Images, ListTodo, Moon, Palette, Plug, Settings, Sun, Upload, Zap } from 'lucide-react'
 import { getDocsBaseUrl, openExternalUrl } from '../lib/desktop'
 import { useAppStore } from '../store/useAppStore'
 import type { PageKey } from '../types'
@@ -14,19 +14,51 @@ const items: Array<{ key: PageKey; label: string; icon: typeof Boxes }> = [
   { key: 'settings', label: '设置', icon: Settings },
 ]
 
+type ThemeKey = 'mist' | 'midnight' | 'sakura'
+
+const themes: Array<{ key: ThemeKey; label: string; icon: typeof Sun }> = [
+  { key: 'mist', label: '雾白', icon: Sun },
+  { key: 'midnight', label: '深夜', icon: Moon },
+  { key: 'sakura', label: '樱粉', icon: Palette },
+]
+
+const THEME_STORAGE_KEY = 'image-hosting-platform.theme'
+
+function applyTheme(theme: ThemeKey) {
+  if (theme === 'mist') delete document.documentElement.dataset.theme
+  else document.documentElement.dataset.theme = theme
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const { page, setPage, openUpload } = useAppStore()
   const docsUrl = getDocsBaseUrl()
+  const [theme, setTheme] = useState<ThemeKey>(() => {
+    const saved = window.localStorage.getItem(THEME_STORAGE_KEY)
+    return saved === 'midnight' || saved === 'sakura' ? saved : 'mist'
+  })
+
+  useEffect(() => {
+    applyTheme(theme)
+    window.localStorage.setItem(THEME_STORAGE_KEY, theme)
+  }, [theme])
+
+  function cycleTheme() {
+    const currentIndex = themes.findIndex((item) => item.key === theme)
+    setTheme(themes[(currentIndex + 1) % themes.length].key)
+  }
+
+  const activeTheme = themes.find((item) => item.key === theme) || themes[0]
+  const ThemeIcon = activeTheme.icon
 
   return (
-    <div className="min-h-screen bg-[var(--app-bg)] text-slate-900">
-      <aside className="app-sidebar fixed inset-y-0 left-0 z-30 w-[220px] border-r border-slate-200/70 bg-white/78 backdrop-blur-xl">
+    <div className="min-h-screen bg-[var(--app-bg)] text-[var(--text-primary)]">
+      <aside className="app-sidebar theme-glass fixed inset-y-0 left-0 z-30 w-[220px] border-r">
         <div className="flex h-full flex-col p-4">
           <div className="flex items-center gap-3 px-2 py-3">
             <div className="grid size-9 place-items-center rounded-2xl bg-slate-950 text-white shadow-sm"><Zap size={17} /></div>
             <div className="app-brand-copy">
               <div className="text-[15px] font-semibold tracking-[-0.02em]">图床</div>
-              <div className="text-[11px] text-slate-400">Image Hosting Platform</div>
+              <div className="text-[11px] text-[var(--text-muted)]">Image Hosting Platform</div>
             </div>
           </div>
 
@@ -43,7 +75,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                 key={key}
                 onClick={() => setPage(key)}
                 className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition ${
-                  page === key ? 'bg-slate-100 font-medium text-slate-950' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+                  page === key
+                    ? 'bg-[var(--surface-soft)] font-medium text-[var(--text-primary)]'
+                    : 'text-[var(--text-secondary)] hover:bg-[var(--surface-soft)] hover:text-[var(--text-primary)]'
                 }`}
               >
                 <Icon size={17} strokeWidth={1.8} />
@@ -53,15 +87,22 @@ export function AppShell({ children }: { children: ReactNode }) {
           </nav>
 
           <div className="mt-auto space-y-2">
+            <button
+              onClick={cycleTheme}
+              className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium text-[var(--text-secondary)] transition hover:bg-[var(--surface-soft)] hover:text-[var(--text-primary)]"
+              title="切换界面皮肤；后续设置页会提供壁纸、强调色、透明度等完整选项"
+            >
+              <ThemeIcon size={14} /> <span className="app-docs-label">皮肤 · {activeTheme.label}</span>
+            </button>
             {docsUrl && (
-              <button onClick={() => void openExternalUrl(docsUrl)} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-800">
+              <button onClick={() => void openExternalUrl(docsUrl)} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium text-[var(--text-secondary)] transition hover:bg-[var(--surface-soft)] hover:text-[var(--text-primary)]">
                 <BookOpen size={14} /> <span className="app-docs-label">教程与帮助</span>
               </button>
             )}
-            <div className="app-sidebar-footer rounded-2xl border border-slate-200/80 bg-slate-50/80 p-3">
-              <div className="text-xs font-medium text-slate-700">v1.3.5 · Multi-cloud Image Hosting</div>
-              <div className="mt-1 text-[11px] leading-5 text-slate-400">托管 · 管理 · 发布 · 多云可靠性</div>
-              <div className="mt-3 flex items-center gap-2 text-[11px] text-emerald-600"><span className="size-1.5 rounded-full bg-emerald-500" /> 发布入口已统一</div>
+            <div className="app-sidebar-footer theme-surface rounded-2xl border p-3">
+              <div className="text-xs font-medium text-[var(--text-secondary)]">v1.4 Preview · Image Hosting Platform</div>
+              <div className="mt-1 text-[11px] leading-5 text-[var(--text-muted)]">托管 · 管理 · 发布 · 多云可靠性</div>
+              <div className="mt-3 flex items-center gap-2 text-[11px] text-emerald-600"><span className="size-1.5 rounded-full bg-emerald-500" /> UX / Sync / Theme 开发中</div>
             </div>
           </div>
         </div>
