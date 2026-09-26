@@ -12,6 +12,7 @@ use storage_core::{
 };
 
 const API_ROOT: &str = "https://api.github.com/";
+const UPLOAD_MAX_ATTEMPTS: usize = 3;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GitHubStorageConfig {
@@ -90,14 +91,18 @@ impl GitHubStorage {
 
     fn auth(&self, request: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
         request
-            .header(USER_AGENT, "multicloud-publisher")
+            .header(USER_AGENT, "image-hosting-platform")
             .header(ACCEPT, "application/vnd.github+json")
             .header("X-GitHub-Api-Version", "2022-11-28")
             .bearer_auth(self.credentials.token.trim())
     }
 
+    fn configured_root(&self) -> &str {
+        self.config.root.trim().trim_matches('/')
+    }
+
     fn repository_path(&self, path: &str) -> String {
-        let root = self.config.root.trim().trim_matches('/');
+        let root = self.configured_root();
         let path = path.trim().trim_matches('/');
         match (root.is_empty(), path.is_empty()) {
             (true, true) => String::new(),
@@ -108,7 +113,7 @@ impl GitHubStorage {
     }
 
     fn logical_path(&self, repository_path: &str) -> String {
-        let root = self.config.root.trim().trim_matches('/');
+        let root = self.configured_root();
         let repository_path = repository_path.trim_matches('/');
         if root.is_empty() {
             return repository_path.to_string();
@@ -180,9 +185,10 @@ impl GitHubStorage {
                     body
                 }
             });
+
         if status == StatusCode::UNAUTHORIZED {
             StorageError::Authentication(
-                "GitHub Token 无效、已过期或已撤销。请使用 Personal Access Token（Fine-grained 推荐），不要填写 SSH 密钥/指纹；创建后选择目标仓库，并授予 Contents: Read and write。".into(),
+                "GitHub Token 无效、已过期或已撤销。请使用 Personal Access Token（推荐 Fine-grained），并为目标仓库授予 Contents: Read and write。".into(),
             )
         } else if status == StatusCode::FORBIDDEN {
             StorageError::Authentication(format!(
@@ -196,6 +202,10 @@ impl GitHubStorage {
             StorageError::Provider(
                 "找不到指定 GitHub 分支。请检查分支名（例如 main），并确认 Token 可以访问该仓库。".into(),
             )
+        } else if status == StatusCode::CONFLICT && context.contains("upload") {
+            StorageError::Provider(format!(
+                "GitHub 分支在上传期间被其他提交更新，连续重试后仍发生 409 Conflict。请稍后重试；如果正在批量上传，应用会继续避免把一次瞬时并发冲突当成永久失败。GitHub 返回：{message}"
+            ))
         } else {
             StorageError::Provider(format!("{context} ({status}): {message}"))
         }
@@ -224,6 +234,30 @@ impl GitHubStorage {
             .map(ToOwned::to_owned))
     }
 
+    async fn root_status_note(&self) -> Result<String, StorageError> {
+        let root = self.configured_root();
+        if root.is_empty() {
+            return Ok("repository root is readable".into());
+        }
+
+        let response = self
+            .auth(self.client.get(self.contents_url(root)?))
+            .query(&[("ref", self.config.branch.as_str())])
+            .send()
+            .await
+            .map_err(|e| StorageError::Network(e.to_string()))?;
+
+        if response.status() == StatusCode::NOT_FOUND {
+            return Ok(format!(
+                "configured root '{root}' does not exist yet; the first upload will create it"
+            ));
+        }
+        if !response.status().is_success() {
+            return Err(Self::response_error(response, "GitHub root browse check failed").await);
+        }
+        Ok(format!("configured root '{root}' is readable"))
+    }
+
     fn entry_from_value(&self, value: &Value) -> Option<StorageEntry> {
         let name = value.get("name")?.as_str()?.to_string();
         let repository_path = value.get("path")?.as_str()?.to_string();
@@ -239,6 +273,7 @@ impl GitHubStorage {
                 .and_then(Self::canonical_url)
                 .or_else(|| self.raw_public_url(&repository_path).ok())
         };
+
         Some(StorageEntry {
             name,
             path: self.logical_path(&repository_path),
@@ -277,6 +312,7 @@ impl StorageProvider for GitHubStorage {
         if !repo_response.status().is_success() {
             return Err(Self::response_error(repo_response, "GitHub repository check failed").await);
         }
+
         let repo: Value = repo_response
             .json()
             .await
@@ -289,11 +325,13 @@ impl StorageProvider for GitHubStorage {
             .pointer("/permissions/push")
             .and_then(Value::as_bool)
             .unwrap_or(false);
+
         if !can_push {
             return Err(StorageError::Authentication(
-                "GitHub token can read the repository but does not have repository write access. For a fine-grained token, grant Repository permissions → Contents: Read and write for this repository.".into(),
+                "GitHub Token 可以读取仓库，但没有写权限。Fine-grained Token 请为该仓库授予 Repository permissions → Contents: Read and write。".into(),
             ));
         }
+
         if is_private
             && self
                 .config
@@ -304,7 +342,7 @@ impl StorageProvider for GitHubStorage {
                 .is_none()
         {
             return Err(StorageError::Provider(
-                "GitHub repository is private. Use a public repository or configure a public base URL that can serve the uploaded files.".into(),
+                "GitHub 仓库是私有仓库。若图片需要给别人访问，请改用公开仓库，或配置可以公开提供文件的代理/CDN 域名。".into(),
             ));
         }
 
@@ -317,10 +355,11 @@ impl StorageProvider for GitHubStorage {
             return Err(Self::response_error(branch_response, "GitHub branch check failed").await);
         }
 
+        let root_note = self.root_status_note().await?;
         Ok(ConnectionReport {
             reachable: true,
             detail: format!(
-                "GitHub repository {}/{} · {} is reachable; authenticated repository write access is available",
+                "GitHub repository {}/{} · {} is reachable; authenticated write access is available; {root_note}",
                 self.config.owner, self.config.repo, self.config.branch
             ),
         })
@@ -329,65 +368,78 @@ impl StorageProvider for GitHubStorage {
     async fn upload(&self, request: UploadRequest) -> Result<UploadResult, StorageError> {
         let logical_path = request.path.clone();
         let repository_path = self.repository_path(&logical_path);
-        let existing_sha = self.existing_sha(&repository_path).await?;
-        let mut payload = json!({
-            "message": format!("chore(assets): publish {}", repository_path),
-            "content": STANDARD.encode(request.body.as_ref()),
-            "branch": self.config.branch.clone(),
-        });
-        if let Some(sha) = existing_sha {
-            payload["sha"] = Value::String(sha);
-        }
+        let encoded_content = STANDARD.encode(request.body.as_ref());
 
-        let response = self
-            .auth(self.client.put(self.contents_url(&repository_path)?))
-            .json(&payload)
-            .send()
-            .await
-            .map_err(|e| StorageError::Network(e.to_string()))?;
-        if !response.status().is_success() {
-            return Err(Self::response_error(response, "GitHub upload failed").await);
-        }
-        let body: Value = response
-            .json()
-            .await
-            .map_err(|e| StorageError::Provider(e.to_string()))?;
-        let sha = body
-            .pointer("/content/sha")
-            .and_then(Value::as_str)
-            .map(ToOwned::to_owned);
+        for attempt in 1..=UPLOAD_MAX_ATTEMPTS {
+            let existing_sha = self.existing_sha(&repository_path).await?;
+            let mut payload = json!({
+                "message": format!("chore(assets): publish {}", repository_path),
+                "content": encoded_content,
+                "branch": self.config.branch.clone(),
+            });
+            if let Some(sha) = existing_sha {
+                payload["sha"] = Value::String(sha);
+            }
 
-        // A successful PUT is not treated as finished until the new blob can be
-        // resolved from the repository again. This makes UI/Typora success mean
-        // “the file is actually visible in GitHub”, not merely “a request was queued”.
-        if let Some(expected_sha) = sha.as_deref() {
+            let response = self
+                .auth(self.client.put(self.contents_url(&repository_path)?))
+                .json(&payload)
+                .send()
+                .await
+                .map_err(|e| StorageError::Network(e.to_string()))?;
+
+            if response.status() == StatusCode::CONFLICT && attempt < UPLOAD_MAX_ATTEMPTS {
+                continue;
+            }
+            if !response.status().is_success() {
+                return Err(Self::response_error(response, "GitHub upload failed").await);
+            }
+
+            let body: Value = response
+                .json()
+                .await
+                .map_err(|e| StorageError::Provider(e.to_string()))?;
+            let sha = body
+                .pointer("/content/sha")
+                .and_then(Value::as_str)
+                .map(ToOwned::to_owned)
+                .ok_or_else(|| {
+                    StorageError::Provider(
+                        "GitHub 上传响应没有返回已提交文件的 SHA，因此本次上传不会被标记为成功。".into(),
+                    )
+                })?;
+
+            // Do not report success until GitHub resolves the committed blob again.
             let verified_sha = self.existing_sha(&repository_path).await?;
-            if verified_sha.as_deref() != Some(expected_sha) {
+            if verified_sha.as_deref() != Some(sha.as_str()) {
+                if attempt < UPLOAD_MAX_ATTEMPTS {
+                    continue;
+                }
                 return Err(StorageError::Provider(format!(
-                    "GitHub upload returned success, but remote verification failed for {repository_path}"
+                    "GitHub 已接受上传请求，但远端校验未确认 {repository_path} 的最新 SHA。请稍后重试。"
                 )));
             }
-        } else {
-            return Err(StorageError::Provider(
-                "GitHub upload response did not include the committed file SHA; remote upload was not accepted as verified".into(),
-            ));
+
+            let download_url = body
+                .pointer("/content/download_url")
+                .and_then(Value::as_str)
+                .and_then(Self::canonical_url);
+            let public_url = if let Some(url) = self.custom_public_url(&repository_path) {
+                Self::canonical_url(&url).or(Some(url))
+            } else {
+                download_url.or_else(|| self.raw_public_url(&repository_path).ok())
+            };
+
+            return Ok(UploadResult {
+                remote_path: logical_path,
+                public_url,
+                etag: Some(sha),
+            });
         }
 
-        let download_url = body
-            .pointer("/content/download_url")
-            .and_then(Value::as_str)
-            .and_then(Self::canonical_url);
-        let public_url = if let Some(url) = self.custom_public_url(&repository_path) {
-            Self::canonical_url(&url).or(Some(url))
-        } else {
-            download_url.or_else(|| self.raw_public_url(&repository_path).ok())
-        };
-
-        Ok(UploadResult {
-            remote_path: logical_path,
-            public_url,
-            etag: sha,
-        })
+        Err(StorageError::Provider(
+            "GitHub 上传在自动重试后仍未完成。".into(),
+        ))
     }
 
     async fn download(&self, path: &str) -> Result<bytes::Bytes, StorageError> {
@@ -401,6 +453,7 @@ impl StorageProvider for GitHubStorage {
         if !response.status().is_success() {
             return Err(Self::response_error(response, "GitHub download failed").await);
         }
+
         let payload: Value = response
             .json()
             .await
@@ -412,14 +465,17 @@ impl StorageProvider for GitHubStorage {
                 .map_err(|e| StorageError::Provider(format!("GitHub content decode failed: {e}")))?;
             return Ok(bytes::Bytes::from(decoded));
         }
+
         let download_url = payload
             .get("download_url")
             .and_then(Value::as_str)
-            .ok_or_else(|| StorageError::Provider("GitHub content response did not include file bytes".into()))?;
+            .ok_or_else(|| {
+                StorageError::Provider("GitHub content response did not include file bytes".into())
+            })?;
         let response = self
             .client
             .get(download_url)
-            .header(USER_AGENT, "multicloud-publisher")
+            .header(USER_AGENT, "image-hosting-platform")
             .bearer_auth(self.credentials.token.trim())
             .send()
             .await
@@ -463,9 +519,20 @@ impl StorageProvider for GitHubStorage {
             .send()
             .await
             .map_err(|e| StorageError::Network(e.to_string()))?;
+
+        // GitHub has no empty directory objects. A configured root such as `assets`
+        // legitimately returns 404 until the first file is uploaded, so the gallery
+        // must treat that state as an empty remote directory instead of a broken connection.
+        if response.status() == StatusCode::NOT_FOUND
+            && path.trim().is_empty()
+            && !self.configured_root().is_empty()
+        {
+            return Ok(Vec::new());
+        }
         if !response.status().is_success() {
             return Err(Self::response_error(response, "GitHub browse failed").await);
         }
+
         let payload: Value = response
             .json()
             .await
@@ -514,6 +581,14 @@ mod tests {
     }
 
     #[test]
+    fn configured_root_is_normalized() {
+        let mut storage = storage();
+        storage.config.root = " /assets/blog/ ".into();
+        assert_eq!(storage.configured_root(), "assets/blog");
+        assert_eq!(storage.repository_path("a.png"), "assets/blog/a.png");
+    }
+
+    #[test]
     fn custom_public_url_includes_repository_root() {
         let storage = storage();
         assert_eq!(
@@ -521,7 +596,6 @@ mod tests {
             Some("https://img.example.com/assets/blog/a.png")
         );
     }
-
 
     #[test]
     fn raw_public_url_percent_encodes_unicode_path() {
